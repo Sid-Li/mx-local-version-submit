@@ -14,6 +14,7 @@ import sgtk
 import os
 import datetime
 
+
 # by importing QT from sgtk rather than directly, we ensure that
 # the code will be compatible with both PySide and PyQt.
 from sgtk.platform.qt import QtCore, QtGui

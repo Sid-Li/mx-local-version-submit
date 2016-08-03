@@ -46,10 +46,6 @@ class MxSGFileItemWidget(QtGui.QWidget):
 
 
 
-
-
-
-
 if __name__ == '__main__':
     app = QtGui.QApplication([])
     print QtGui.QImageReader.imageFormat(r"E:\workspace\python\shotgun\apps\mx-local-version-submit\resources\build_resources.py")

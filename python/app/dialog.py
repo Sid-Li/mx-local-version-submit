@@ -13,12 +13,14 @@
 import sgtk
 import os
 import datetime
+import tempfile
+import subprocess
 
 
 # by importing QT from sgtk rather than directly, we ensure that
 # the code will be compatible with both PySide and PyQt.
-from sgtk.platform.qt import QtCore, QtGui
-# from PySide import QtGui, QtCore
+# from sgtk.platform.qt import QtCore, QtGui
+from PySide import QtGui, QtCore
 from .ui.dialog import Ui_Dialog
 
 
@@ -35,7 +37,6 @@ def show_dialog(app_instance):
     app_instance.engine.show_dialog("Submit Version", app_instance, AppDialog)
 
 
-
 class PreviewLabel(QtGui.QWidget):
 
     clicked = QtCore.Signal()
@@ -45,25 +46,28 @@ class PreviewLabel(QtGui.QWidget):
         self.setFixedSize(160, 100)
         self.__file_path = ''
         self.__preview_img = None
+        self.clear_temp_thumbnail()
 
     def mouseReleaseEvent(self, event):
         self.clicked.emit()
 
     def set_file_path(self, file_path):
         self.__file_path = file_path
+
+        output_path = self.temp_thumbnail_image_path()
+        self.clear_temp_thumbnail()
+        self.make_thumbnail(file_path, output_path)
+
+        if os.path.exists(output_path):
+            fp = open(output_path, 'rb')
+            data = fp.read()
+            fp.close()
+            self.__preview_img = QtGui.QPixmap()
+            self.__preview_img.loadFromData(data)
+        else:
+            self.__preview_img = None
+
         self.update()
-
-        valid_image = QtGui.QImageReader.imageFormat(file_path)
-        if valid_image != '':
-            self.__preview_img = QtGui.QPixmap(file_path)
-            return
-
-        valid_movie = QtGui.QMovie(file_path)
-        if valid_movie.isValid():
-            self.__preview_img = valid_movie.currentPixmap()
-            return
-
-        self.__preview_img = None
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
@@ -93,6 +97,22 @@ class PreviewLabel(QtGui.QWidget):
         else:
             painter.drawText(50, 50, 'No Preview')
         event.accept()
+
+    @classmethod
+    def temp_thumbnail_image_path(cls):
+        return os.path.join(tempfile.gettempdir(), 'mx_shotgun_thumbnail.png')
+
+    @classmethod
+    def clear_temp_thumbnail(cls):
+        p = cls.temp_thumbnail_image_path()
+        if os.path.exists(p):
+            os.remove(p)
+
+    @classmethod
+    def make_thumbnail(cls, src, out):
+        p = subprocess.Popen(r'Y:\MatrixStudio\bin\ffmpeg -i "%s" -vf "select=gte(n\,0)" -vframes 1 "%s" -y' %
+                             (src, out))
+        p.wait()
 
 
 class AppDialog(QtGui.QWidget):
@@ -181,13 +201,20 @@ class AppDialog(QtGui.QWidget):
             'entity': self._app.context.entity,
             'sg_task': self._app.context.task,
             'description': self.ui.desc_editor.toPlainText(),
+            'code': self._fields['name'],
             'sg_uploaded_movie': {
                 'local_path': dst_file,
                 'name': self._fields['name']
             },
             'sg_path_to_movie': dst_file
         }
-        return self._app.shotgun.create('Version', data)
+        new_version = self._app.shotgun.create('Version', data)
+
+        thumbnail = PreviewLabel.temp_thumbnail_image_path()
+        if os.path.exists(thumbnail):
+            self._app.shotgun.upload_thumbnail('Version', new_version['id'], thumbnail)
+
+        return new_version
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasFormat('text/uri-list'):
@@ -203,6 +230,4 @@ class AppDialog(QtGui.QWidget):
     def __update_fields(self, name):
         self._fields['name'] = name
         self._fields['timestamp'] = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-
-
 

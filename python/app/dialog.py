@@ -31,7 +31,6 @@ def show_dialog(app_instance):
     
     # we pass the dialog class to this method and leave the actual construction
     # to be carried out by toolkit.
-    app_instance.synchronize_filesystem_structure()
     app_instance.engine.show_dialog("Submit Version", app_instance, AppDialog)
     
 

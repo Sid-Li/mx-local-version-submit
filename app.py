@@ -37,4 +37,5 @@ class StgkStarterApp(Application):
         menu_callback = lambda : app_payload.dialog.show_dialog(self)
 
         # now register the command with the engine
+        self.engine.sgtk.synchronize_filesystem_structure()
         self.engine.register_command("Submit Version", menu_callback)

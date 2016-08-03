@@ -21,6 +21,7 @@ from sgtk.platform.qt import QtCore, QtGui
 # from PySide import QtGui, QtCore
 from .ui.dialog import Ui_Dialog
 
+
 def show_dialog(app_instance):
     """
     Shows the main dialog window.

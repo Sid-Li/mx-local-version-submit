@@ -33,7 +33,67 @@ def show_dialog(app_instance):
     # we pass the dialog class to this method and leave the actual construction
     # to be carried out by toolkit.
     app_instance.engine.show_dialog("Submit Version", app_instance, AppDialog)
-    
+
+
+
+class PreviewLabel(QtGui.QWidget):
+
+    clicked = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super(PreviewLabel, self).__init__(parent)
+        self.setFixedSize(160, 100)
+        self.__file_path = ''
+        self.__preview_img = None
+
+    def mouseReleaseEvent(self, event):
+        self.clicked.emit()
+
+    def set_file_path(self, file_path):
+        self.__file_path = file_path
+        self.update()
+
+        valid_image = QtGui.QImageReader.imageFormat(file_path)
+        if valid_image != '':
+            self.__preview_img = QtGui.QPixmap(file_path)
+            return
+
+        valid_movie = QtGui.QMovie(file_path)
+        if valid_movie.isValid():
+            self.__preview_img = valid_movie.currentPixmap()
+            return
+
+        self.__preview_img = None
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        rect = event.rect()
+        painter.save()
+        painter.setPen(QtGui.QPen(QtCore.Qt.gray))
+        painter.setBrush(QtGui.QBrush(QtCore.Qt.gray))
+        painter.drawRect(rect)
+        painter.restore()
+
+        if self.__preview_img:
+            painter.save()
+            img = self.__preview_img
+            wh_ratio = rect.width()*1.0/rect.height()
+            img_wh_ratio = img.width()*1.0/img.height()
+            img_rect = rect.adjusted(0, 0, 0, 0)
+            if wh_ratio > img_wh_ratio:
+                img_rect.setWidth(rect.height()*img_wh_ratio)
+            else:
+                img_rect.setHeight(rect.width()/img_wh_ratio)
+
+            img_rect = QtCore.QRect(rect.x()+(rect.width()-img_rect.width())*0.5,
+                                    rect.y()+(rect.height()-img_rect.height())*0.5,
+                                    img_rect.width(), img_rect.height())
+            painter.drawPixmap(img_rect, img)
+            painter.restore()
+        else:
+            painter.drawText(50, 50, 'No Preview')
+        event.accept()
+
 
 class AppDialog(QtGui.QWidget):
     
@@ -44,10 +104,14 @@ class AppDialog(QtGui.QWidget):
         # now load in the UI that was created in the UI designer
         self.ui = Ui_Dialog() 
         self.ui.setupUi(self)
-        
+        self.file_preview_label = PreviewLabel()
+        self.ui.file_info_layout.insertWidget(0, self.file_preview_label)
+
         # most of the useful accessors are available through the Application class instance
         # it is often handy to keep a reference to this. You can get it via the following method:
         self._app = sgtk.platform.current_bundle()
+        self.ui.context_label.setText('%s' % self._app.context)
+        self.ui.context_label.setStyleSheet('font-size: 18pt;')
 
         self._template = self._app.sgtk.templates['review_version']
         self._fields = self._app.context.as_template_fields(self._template)
@@ -57,11 +121,18 @@ class AppDialog(QtGui.QWidget):
         self.ui.cancel_button.clicked.connect(self.close)
         self.ui.submit_button.clicked.connect(self.on_submit_clicked)
         self.ui.name_editor.textChanged.connect(self.on_name_editor_changed)
+        self.file_preview_label.clicked.connect(self.on_file_preview)
 
     def set_file_path(self, path):
         self.ui.file_path_label.setText(path)
         self._fields['ext'] = path.split('.')[-1]
         self.on_name_editor_changed(self.ui.name_editor.text())
+        self.file_preview_label.set_file_path(path)
+
+    def on_file_preview(self):
+        file_path = self.ui.file_path_label.text()
+        if os.path.exists(file_path):
+            os.startfile(file_path)
 
     def on_name_editor_changed(self, text):
         if text == '':
@@ -132,3 +203,6 @@ class AppDialog(QtGui.QWidget):
     def __update_fields(self, name):
         self._fields['name'] = name
         self._fields['timestamp'] = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+
+
+

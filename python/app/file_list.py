@@ -50,7 +50,14 @@ class MxSGFileItemWidget(QtGui.QWidget):
 
 
 
+if __name__ == '__main__':
+    app = QtGui.QApplication([])
+    print QtGui.QImageReader.imageFormat(r"E:\workspace\python\shotgun\apps\mx-local-version-submit\resources\build_resources.py")
+    playback_label = sgtk.platform.import_framework("tk-framework-qtwidgets", "playback_label")
 
+    # construct label object
+    label =  playback_label.ShotgunPlaybackLabel(parent_widget)
+    app.exec_()
 
 
 
